@@ -5,9 +5,8 @@ if [ -f "/.firstrun" ]; then
     targetgid="$2"
     groupadd -g "$2" ubuntu
     useradd -u "$1" -g "$2" -m ubuntu
-    hostname "$3"
     rm -f /.firstrun
 fi
-shift 3
+shift 2
 cd ~ubuntu
 exec sudo -u ubuntu "$@"
