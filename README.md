@@ -1,2 +1,2 @@
-# aptsandbox
-Sandbox apt packages with Docker
+# APTSandbox
+Sandbox apt packages (and other non-flatpak/snap applications) with Docker
