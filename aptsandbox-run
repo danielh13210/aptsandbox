@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+
+from argparse import ArgumentParser
+import os
+import socket
+import json
+parser=ArgumentParser(prog="aptsandbox-run",description="Launch containers for app sandboxing")
+parser.add_argument("app",help="The app to launch in sandbox")
+args=parser.parse_args()
+cmdline="docker run --rm -it "
+def process_perm(cmdline,p):
+  elements=p.split(':',1)
+  base=elements[0]
+  if ':' in p: opt=elements[1]
+  else: opt=None
+  match base:
+    case "net-full":
+      cmdline+="--network=full "
+    case "net-listen":
+      if "--network=full" in cmdline:
+        print("WARNING: net-full already specified, ignoring")
+        return cmdline
+      if "--network" not in cmdline: cmdline+="--network=bridge "
+      cmdline+=f"-p {opt} "
+    case "home":
+      return process_perm(cmdline,f"directory:{os.path.expanduser('~')}:/home/ubuntu")
+    case "directory"|"file":
+      if ":" in opt: cmdline+=f"-v {opt} "
+      else: cmdline+=f"-v {opt}:{opt} "
+    case "gui":
+      if 'WAYLAND_DISPLAY' in os.environ:
+        wayland_display=os.environ['WAYLAND_DISPLAY']
+        if not wayland_display.startswith('/'): wayland_display=os.path.join(os.environ['XDG_RUNTIME_DIR'],wayland_display)
+        cmdline=process_perm(cmdline,f"file:{wayland_display}:/wayland")
+      if 'DISPLAY' in os.environ and 'XAUTHORITY' in os.environ:
+        cmdline=process_perm(process_perm(cmdline,f"file:{os.environ['XAUTHORITY']}:/home/ubuntu/.Xauthority"),f"file:/tmp/.X11-unix/X{os.environ['DISPLAY'][1:]}" if 'DISPLAY' in os.environ else '')
+  return cmdline
+conf_file=os.path.expanduser(f'~/.config/aptsandbox/apps/{args.app}.json')
+if not os.path.isfile(conf_file):
+  print(f"Error: App config file {conf_file} not found")
+  print("Is the app installed?")
+  exit(1)
+config=json.loads(open(conf_file,'r').read())
+for p in config["perms"]:
+  cmdline=process_perm(cmdline,p)
+if "--network" not in cmdline: cmdline+="--network=none "
+cmdline+=f"--hostname={socket.gethostname()} {args.app} {os.getuid()} {os.getgid()} \"\" {config['command']}"
+os.system(cmdline)
