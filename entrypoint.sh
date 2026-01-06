@@ -14,6 +14,7 @@ if [ -f "/.firstrun" ]; then
     useradd -u "$1" -g "$2" -m ubuntu
     rm -f /.firstrun
 fi
+echo "127.0.1.1" "$(hostname)" >> /etc/hosts
 IFS=','
 read -a options <<< "$3"
 shift 3
