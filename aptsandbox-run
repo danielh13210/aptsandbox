@@ -8,6 +8,7 @@ parser=ArgumentParser(prog="aptsandbox-run",description="Launch containers for a
 parser.add_argument("app",help="The app to launch in sandbox")
 args=parser.parse_args()
 cmdline="docker run --rm -it "
+opts=[]
 def process_perm(cmdline,p):
   elements=p.split(':',1)
   base=elements[0]
@@ -32,8 +33,10 @@ def process_perm(cmdline,p):
         wayland_display=os.environ['WAYLAND_DISPLAY']
         if not wayland_display.startswith('/'): wayland_display=os.path.join(os.environ['XDG_RUNTIME_DIR'],wayland_display)
         cmdline=process_perm(cmdline,f"file:{wayland_display}:/wayland")
+        opts.append("wayland")
       if 'DISPLAY' in os.environ and 'XAUTHORITY' in os.environ:
         cmdline=process_perm(process_perm(cmdline,f"file:{os.environ['XAUTHORITY']}:/home/ubuntu/.Xauthority"),f"file:/tmp/.X11-unix/X{os.environ['DISPLAY'][1:]}" if 'DISPLAY' in os.environ else '')
+        opts.append(f"xorg={os.environ['DISPLAY']}")
   return cmdline
 conf_file=os.path.expanduser(f'~/.config/aptsandbox/apps/{args.app}.json')
 if not os.path.isfile(conf_file):
@@ -44,5 +47,5 @@ config=json.loads(open(conf_file,'r').read())
 for p in config["perms"]:
   cmdline=process_perm(cmdline,p)
 if "--network" not in cmdline: cmdline+="--network=none "
-cmdline+=f"--hostname={socket.gethostname()} {args.app}_{os.getuid()} {os.getuid()} {os.getgid()} \"\" {config['command']}"
+cmdline+=f"--hostname={socket.gethostname()} {args.app}_{os.getuid()} {os.getuid()} {os.getgid()} {','.join(opts) if len(opts)>0 else '\"\"'} {config['command']}"
 os.system(cmdline)
