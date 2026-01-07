@@ -44,5 +44,5 @@ config=json.loads(open(conf_file,'r').read())
 for p in config["perms"]:
   cmdline=process_perm(cmdline,p)
 if "--network" not in cmdline: cmdline+="--network=none "
-cmdline+=f"--hostname={socket.gethostname()} {args.app} {os.getuid()} {os.getgid()} \"\" {config['command']}"
+cmdline+=f"--hostname={socket.gethostname()} {args.app}_{os.getuid()} {os.getuid()} {os.getgid()} \"\" {config['command']}"
 os.system(cmdline)
