@@ -37,8 +37,7 @@ match args.command:
         id=id.strip()
         setup_cmd=f"docker cp {args.setup_script} {id}:/setup.sh"
         os.system(setup_cmd)
-        os.system(f"docker start {id}")
-        os.system(f"docker exec {id} bash /setup.sh {args.app}")
+        os.system(f"docker start {id} && docker attach {id}")
         os.system(f"docker commit {id} {args.app}_{os.getuid()}")
         os.system(f"docker rm {id}")
         conf_file=os.path.join(conf_dir,args.app+'.json')
