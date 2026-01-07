@@ -14,11 +14,11 @@ conf_dir = os.path.expanduser('~/.config/aptsandbox/apps')
 if not os.path.isfile(os.path.join(conf_dir,f"{args.app}.json")):
     print("ERROR: App not installed or not found.")
     exit(1)
-if (args.get_perms or args.get_command):
+if any(map(lambda n:getattr(args,n),filter(lambda d:d.startswith('get'),map(lambda a:a.dest,parser._actions)))):
     mode = 'get'
 else:
     mode = 'set'
-if mode=='get' and (args.set_perms or args.set_command):
+if mode=='get' and any(map(lambda n:getattr(args,n),filter(lambda d:d.startswith('set'),map(lambda a:a.dest,parser._actions)))):
     print("ERROR: Cannot get and set values at the same time.")
     exit(1)
 if mode=='set':
