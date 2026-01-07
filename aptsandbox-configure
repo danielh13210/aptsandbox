@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+from argparse import ArgumentParser
+import os
+import json
+parser = ArgumentParser(prog="aptsandbox-configure", description="Configure app sandboxing")
+parser.add_argument("app", help="The app to configure")
+parser.add_argument("--set-perms", help="Permissions to grant to the app")
+parser.add_argument("--set-command", help="Command to run the app")
+parser.add_argument("--get-perms", action='store_true', help="Get current permissions of the app")
+parser.add_argument("--get-command", action='store_true', help="Get current command of the app")
+args=parser.parse_args()
+conf_dir = os.path.expanduser('~/.config/aptsandbox/apps')
+if not os.path.isfile(os.path.join(conf_dir,f"{args.app}.json")):
+    print("ERROR: App not installed or not found.")
+    exit(1)
+if (args.get_perms or args.get_command):
+    mode = 'get'
+else:
+    mode = 'set'
+if mode=='get' and (args.set_perms or args.set_command):
+    print("ERROR: Cannot get and set values at the same time.")
+    exit(1)
+if mode=='set':
+    changed = False
+    for val in filter(lambda d:d.startswith('set'),map(lambda a:a.dest,parser._actions)):
+        if getattr(args,val) is not None:
+            changed=True
+    if not changed:
+        print("WARNING: No changes specified.")
+        exit(0)
+    config = open(os.path.join(conf_dir,f"{args.app}.json"),'r').read()
+    config_json = json.loads(config)
+    if args.set_perms is not None:
+        config_json["perms"] = args.set_perms.split(',')
+    if args.set_command is not None:
+        config_json["command"] = args.set_command
+    with open(os.path.join(conf_dir,f"{args.app}.json"),'w') as f:
+        f.write(json.dumps(config_json, indent=4))
+else:
+    config = open(os.path.join(conf_dir,f"{args.app}.json"),'r').read()
+    config_json = json.loads(config)
+    if args.get_perms:
+        print("perms:",','.join(config_json.get("perms", [])))
+    if args.get_command:
+        print("command:",config_json.get("command", ""))
