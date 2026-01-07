@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+
+from argparse import ArgumentParser
+import os
+import subprocess
+import socket
+import json
+import argparse
+
+parser = argparse.ArgumentParser(prog="aptsandbox-install", description="Install or uninstall app sandboxing")
+subparsers = parser.add_subparsers(dest="command", required=True)
+
+# "list" command: no extra arguments
+list_parser = subparsers.add_parser("list", help="List installed apps")
+
+# "install" command: requires an app argument, metafile, and a setup script
+install_parser = subparsers.add_parser("install", help="Install an app")
+install_parser.add_argument("app", help="Name of the app to install")
+install_parser.add_argument("metafile", help="Path to the app metadata JSON file")
+install_parser.add_argument("setup_script", help="Path to the app setup script")
+
+# "uninstall" command: requires an app argument
+uninstall_parser = subparsers.add_parser("uninstall", help="Uninstall an app")
+uninstall_parser.add_argument("app", help="Name of the app to uninstall")
+args = parser.parse_args()
+conf_dir=os.path.expanduser('~/.config/aptsandbox/apps')
+match args.command:
+    case "list":
+        if not os.path.isdir(conf_dir):
+            exit(0)
+        apps=os.listdir(conf_dir)
+        for app_file in apps:
+            if app_file.endswith('.json'):
+                print(app_file[:-5])
+    case "install":
+        id=subprocess.check_output(f"docker create aptsandbox {os.getuid()} {os.getgid()} setup /setup.sh",shell=True,text=True)
+        id=id.strip()
+        setup_cmd=f"docker cp {args.setup_script} {id}:/setup.sh"
+        os.system(setup_cmd)
+        os.system(f"docker start {id}")
+        os.system(f"docker exec {id} bash /setup.sh {args.app}")
+        os.system(f"docker commit {id} {args.app}_{os.getuid()}")
+        os.system(f"docker rm {id}")
+        conf_file=os.path.join(conf_dir,args.app+'.json')
+        if not os.path.isdir(conf_dir):
+            os.makedirs(conf_dir)
+        metafile_content=json.load(open(args.metafile,'r'))
+        with open(conf_file,'w') as f:
+            conf_data={
+                "name": metafile_content.get("name", args.app),
+                "command": metafile_content.get("command", "/bin/bash"),
+                "perms": metafile_content.get("requires_gui", False) and ["gui"] or []
+            }
+            f.write(json.dumps(conf_data, indent=4))
+
+    case "uninstall":
+        conf_file=os.path.join(conf_dir,args.app+'.json')
+        if not os.path.isfile(conf_file):
+            print(f"Error: App config file {conf_file} not found")
+            print("Is the app installed?")
+            exit(1)
+        os.remove(conf_file)
+        os.system(f"docker rmi {args.app}_{os.getuid()}")
+    
