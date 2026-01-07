@@ -5,8 +5,10 @@ import os
 import json
 parser = ArgumentParser(prog="aptsandbox-configure", description="Configure app sandboxing")
 parser.add_argument("app", help="The app to configure")
+parser.add_argument("--set-displayname", help="Display name for the app")
 parser.add_argument("--set-perms", help="Permissions to grant to the app")
 parser.add_argument("--set-command", help="Command to run the app")
+parser.add_argument("--get-displayname", action='store_true', help="Get current display name of the app")
 parser.add_argument("--get-perms", action='store_true', help="Get current permissions of the app")
 parser.add_argument("--get-command", action='store_true', help="Get current command of the app")
 args=parser.parse_args()
@@ -35,6 +37,8 @@ if mode=='set':
         config_json["perms"] = args.set_perms.split(',')
     if args.set_command is not None:
         config_json["command"] = args.set_command
+    if args.set_displayname is not None:
+        config_json["name"] = args.set_displayname
     with open(os.path.join(conf_dir,f"{args.app}.json"),'w') as f:
         f.write(json.dumps(config_json, indent=4))
 else:
@@ -44,3 +48,5 @@ else:
         print("perms:",','.join(config_json.get("perms", [])))
     if args.get_command:
         print("command:",config_json.get("command", ""))
+    if args.get_displayname:
+        print("displayname:",config_json.get("name", ""))
