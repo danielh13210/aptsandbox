@@ -12,13 +12,17 @@ conf_dir=os.path.expanduser('~/.config/aptsandbox/apps')
 if not os.path.isdir(conf_dir):
     exit(0)
 app_data={}
+staged_app_data={}
 apps=os.listdir(conf_dir)
 for app_file in apps:
     if app_file.endswith('.json'):
         f=open(os.path.join(conf_dir,app_file),'r')
         json_content=json.load(f)
+        f.seek(0)
+        json_content_copy=json.load(f)
         f.close()
         app_data[app_file[:-5]]=json_content
+        staged_app_data[app_file[:-5]]=json_content_copy
 pending=set()
 while True:
     cmd=input().strip()
@@ -30,7 +34,7 @@ while True:
         for x in elements[1:]:
             if "match=" in x:
                 match_value=x.split('=',1)[1]
-        for app_id,info in app_data.items():
+        for app_id,info in staged_app_data.items():
             if functools.reduce(lambda p,x: p or (match_value in x), info,False):
                 print(app_id,info["name"],sep=",")
     if elements[0]=='getconf':
@@ -38,11 +42,11 @@ while True:
             print("ERROR: Invalid getconf command")
             continue
         app=elements[1]
-        if app not in app_data:
+        if app not in staged_app_data:
             print(f"ERROR: App {app} not found")
             continue
         property=elements[2]
-        val=app_data[app].get(property,None)
+        val=staged_app_data[app].get(property,None)
         if val is None:
             print(f"ERROR: Property {property} not found for app {app}")
         else:
@@ -56,7 +60,7 @@ while True:
             print("ERROR: Invalid setconf command")
             continue
         app=elements[1]
-        if app not in app_data:
+        if app not in staged_app_data:
             print(f"ERROR: App {app} not found")
             continue
         property=elements[2]
@@ -65,19 +69,29 @@ while True:
             value=value[1:-1].split(',')
         elif value.startswith('"') and value.endswith('"'):
             value=value[1:-1]
-        app_data[app][property]=value
+        staged_app_data[app][property]=value
         pending.add(app)
     if elements[0]=='pending':
         for app in pending:
             print(app)
-    if elements[0]=="flush":
+    if elements[0]=="discard":
+        if elements[1]=="all":
+            apps_to_discard=app_data.keys()
+        else:
+            apps_to_discard=elements[1:]
+        for app in apps_to_discard:
+            staged_app_data[app]=json.loads(json.dumps(app_data[app]))
+            if app in pending:
+                pending.remove(app)
+    if elements[0] in ("flush"):
         if elements[1]=="all":
             apps_to_flush=app_data.keys()
         else:
             apps_to_flush=elements[1:]
-        for app,info in app_data.items():
+        for app,info in staged_app_data.items():
             if app not in apps_to_flush: continue
             conf_file=os.path.join(conf_dir,app+'.json')
             with open(conf_file,'w') as f:
-                f.write(json.dumps(info, indent=4))
+                f.write(d:=json.dumps(info, indent=4))
+                app_data[app]=json.loads(d)
             pending.remove(app)
