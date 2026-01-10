@@ -6,13 +6,15 @@ import subprocess
 import socket
 import json
 import argparse
+import functools
 
 parser = argparse.ArgumentParser(prog="aptsandbox-install", description="Install or uninstall app sandboxing")
 subparsers = parser.add_subparsers(dest="command", required=True)
 
 # "list" command: no extra arguments
 list_parser = subparsers.add_parser("list", help="List installed apps")
-list_parser.add_argument("options", default="", nargs='?', help='Specify options for listing')
+list_parser.add_argument("--match", default="", help='Specify options for listing')
+list_parser.add_argument("--show-displayname", action="store_true", help="Show display names of apps")
 
 # "install" command: requires an app argument, metafile, and a setup script
 install_parser = subparsers.add_parser("install", help="Install an app")
@@ -27,20 +29,21 @@ args = parser.parse_args()
 conf_dir=os.path.expanduser('~/.config/aptsandbox/apps')
 match args.command:
     case "list":
-        options = args.options.split(',')
         if not os.path.isdir(conf_dir):
             exit(0)
         apps=os.listdir(conf_dir)
         for app_file in apps:
             if app_file.endswith('.json'):
-                if 'show-displayname' in options:
-                    print(app_file[:-5],end=',')
-                    f=open(os.path.join(conf_dir,app_file),'r')
-                    json_content=json.load(f)
-                    f.close()
-                    print(json_content['name'])
-                else:
-                    print(app_file[:-5])
+                f=open(os.path.join(conf_dir,app_file),'r')
+                json_content=json.load(f)
+                f.close()
+                displayname=json_content.get('name',app_file[:-5])
+                values=[app_file[:-5]]
+                if args.show_displayname:
+                    values.append(displayname)
+                if args.match is not None:
+                    if not functools.reduce(lambda p,x: p or (args.match in x), (app_file[:-5], displayname),False): continue
+                print(*values,sep=",")
     case "install":
         id=subprocess.check_output(f"docker create aptsandbox {os.getuid()} {os.getgid()} setup /setup.sh",shell=True,text=True)
         id=id.strip()
