@@ -75,6 +75,9 @@ while True:
         for app in pending:
             print(app)
     if elements[0]=="discard":
+        if len(elements)<2:
+            print("ERROR: Invalid discard command")
+            continue
         if elements[1]=="all":
             apps_to_discard=app_data.keys()
         else:
@@ -84,6 +87,9 @@ while True:
             if app in pending:
                 pending.remove(app)
     if elements[0] in ("flush"):
+        if len(elements)<2:
+            print("ERROR: Invalid flush command")
+            continue
         if elements[1]=="all":
             apps_to_flush=app_data.keys()
         else:
