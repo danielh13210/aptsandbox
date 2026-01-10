@@ -5,6 +5,7 @@ import os
 import subprocess
 import socket
 import json
+import collections.abc as collections
 import functools
 
 conf_dir=os.path.expanduser('~/.config/aptsandbox/apps')
@@ -17,9 +18,7 @@ for app_file in apps:
         f=open(os.path.join(conf_dir,app_file),'r')
         json_content=json.load(f)
         f.close()
-        displayname=json_content.get('name',app_file[:-5])
-        values=[app_file[:-5],displayname]
-        app_data[app_file[:-5]]=values 
+        app_data[app_file[:-5]]=json_content
 while True:
     cmd=input().strip()
     elements=cmd.split(' ')
@@ -32,5 +31,47 @@ while True:
                 match_value=x.split('=',1)[1]
         for app_id,info in app_data.items():
             if functools.reduce(lambda p,x: p or (match_value in x), info,False):
-                print(*info,sep=",")
-            
+                print(app_id,info["name"],sep=",")
+    if elements[0]=='getconf':
+        if len(elements)!=3:
+            print("ERROR: Invalid getconf command")
+            continue
+        app=elements[1]
+        if app not in app_data:
+            print(f"ERROR: App {app} not found")
+            continue
+        property=elements[2]
+        val=app_data[app].get(property,None)
+        if val is None:
+            print(f"ERROR: Property {property} not found for app {app}")
+        else:
+            print(f"{property}: ",end="")
+            if isinstance(val, list):
+                print(','.join(val))
+            else:
+                print(val)
+    if elements[0]=='setconf':
+        if len(elements)<4:
+            print("ERROR: Invalid setconf command")
+            continue
+        app=elements[1]
+        if app not in app_data:
+            print(f"ERROR: App {app} not found")
+            continue
+        property=elements[2]
+        value=' '.join(elements[3:])
+        if value.startswith('[') and value.endswith(']'):
+            value=value[1:-1].split(',')
+        elif value.startswith('"') and value.endswith('"'):
+            value=value[1:-1]
+        app_data[app][property]=value
+    if elements[0]=="flush":
+        if elements[1]=="all":
+            apps_to_flush=app_data.keys()
+        else:
+            apps_to_flush=elements[1:]
+        for app,info in app_data.items():
+            if app not in apps_to_flush: continue
+            conf_file=os.path.join(conf_dir,app+'.json')
+            with open(conf_file,'w') as f:
+                f.write(json.dumps(info, indent=4))
