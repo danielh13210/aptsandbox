@@ -19,6 +19,7 @@ for app_file in apps:
         json_content=json.load(f)
         f.close()
         app_data[app_file[:-5]]=json_content
+pending=set()
 while True:
     cmd=input().strip()
     elements=cmd.split(' ')
@@ -65,6 +66,10 @@ while True:
         elif value.startswith('"') and value.endswith('"'):
             value=value[1:-1]
         app_data[app][property]=value
+        pending.add(app)
+    if elements[0]=='pending':
+        for app in pending:
+            print(app)
     if elements[0]=="flush":
         if elements[1]=="all":
             apps_to_flush=app_data.keys()
@@ -75,3 +80,4 @@ while True:
             conf_file=os.path.join(conf_dir,app+'.json')
             with open(conf_file,'w') as f:
                 f.write(json.dumps(info, indent=4))
+            pending.remove(app)
