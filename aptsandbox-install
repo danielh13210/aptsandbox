@@ -3,12 +3,10 @@
 from argparse import ArgumentParser
 import os
 import subprocess
-import socket
 import json
-import argparse
 import functools
 
-parser = argparse.ArgumentParser(prog="aptsandbox-install", description="Install or uninstall app sandboxing")
+parser = ArgumentParser(prog="aptsandbox-install", description="Install or uninstall app sandboxing")
 subparsers = parser.add_subparsers(dest="command", required=True)
 
 # "list" command: no extra arguments
